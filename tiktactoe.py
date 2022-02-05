@@ -1,4 +1,5 @@
 import random
+import re
 from collections.abc import Sequence
 
 from kivy.app import App
@@ -34,7 +35,6 @@ class MainApp(App):
         self.pc = 'O'
         self.buttons: list[ButtonCoord] = []
         self.btn_matrix = self.make_matrix()
-        self.end = False
 
         self.root = BoxLayout(orientation="vertical", padding=5)
         self.grid = GridLayout(cols=self.dimension)
@@ -45,9 +45,8 @@ class MainApp(App):
             size=(self.size, 75),
         )
 
-        self.grid.disabled = True
-
     def make_matrix(self):
+        """Make empty matrix self.dimension x self.dimension."""
         matrix = [[''] * self.dimension for _ in range(self.dimension)]
         for btn in self.buttons:
             matrix[btn.coord[0]][btn.coord[1]] = btn.text
@@ -72,24 +71,26 @@ class MainApp(App):
         return index // self.dimension, index % self.dimension
 
     def play_tic_tac_toe(self, btn: ButtonCoord):
+        """Move and check for win."""
         result = self.check_win(self.put_symbol_cell(btn, self.symbol))
         if result:
-            return self.call_popup("Победа", result)
+            return self.call_popup("Поражение", result)
 
         if not self.check_end():
             pc_move = self.make_pc_move()
             result = self.check_win(pc_move)
             if result:
-                return self.call_popup("Поражение", result)
+                return self.call_popup("Победа", result)
 
     def make_pc_move(self) -> ButtonCoord:
-        """Move pc"""
-        empty_cells = [index for index, cell in enumerate(self.buttons) if cell.text == '']
+        """Make a move with the pc."""
+        empty_cells = [index for index, cell in enumerate(self.buttons)
+                       if cell.text == '']
         index = random.choice(empty_cells)
         return self.put_symbol_cell(self.buttons[index], self.pc)
 
     def put_symbol_cell(self, btn: ButtonCoord, symbol: str):
-        """Put """
+        """Put symbol to cell."""
         btn.text = symbol
         btn.disabled = True
         self.btn_matrix[btn.coord[0]][btn.coord[1]] = btn.text
@@ -108,7 +109,8 @@ class MainApp(App):
             delta = min(self.dimension - 1 - point[0], point[1])
             start_point = (point[0] - delta * incline, point[1] - delta)
             length = max(start_point) - min(start_point) + 1
-        return [(start_point[0] + i * incline, start_point[1] + i) for i in range(length)]
+        return [(start_point[0] + i * incline, start_point[1] + i)
+                for i in range(length)]
 
     def make_text_vector(self, arr: Sequence):
         """Make cell content vector from coordinate vector."""
@@ -126,10 +128,12 @@ class MainApp(App):
                 "135": vector_135,
                 }
 
-    def check_vector(self, vector: Sequence) -> bool:
+    def check_vector(self, vector: Sequence):
         """Check win combination in vector."""
-        first = vector[0]
-        return all(i == first for i in vector) and len(vector) == self.dimension
+        vector_str = "".join([let if let else "*" for let in vector])
+        pattern = rf"X{{{self.to_win}}}|O{{{self.to_win}}}"
+        result = re.search(pattern, vector_str)
+        return result.span() if result else False
 
     def highlight_vector(self, vector: Vector, color: str):
         """Highlight win vector."""
@@ -137,14 +141,13 @@ class MainApp(App):
             btn_index = btn[0] * self.dimension + btn[1]
             self.buttons[btn_index].color = self.get_color(color)
 
-    def check_win(self, btn: ButtonCoord, field=None):
+    def check_win(self, btn: ButtonCoord, ):
         """Check win after move."""
-        if field is None:
-            field = self.buttons
         vectors = self.make_vectors(btn)
         for vector in vectors.values():
-            if self.check_vector(self.make_text_vector(vector)):
-                return vector
+            win = self.check_vector(self.make_text_vector(vector))
+            if win:
+                return vector[win[0]:win[1]]
 
         if self.check_end():
             self.call_popup("Ничья")
@@ -171,11 +174,12 @@ class MainApp(App):
         if vector:
             self.highlight_vector(vector, result_color)
         content = GridLayout(cols=1)
-        content_cancel = ButtonCoord(text='Cancel', size_hint_y=None, height=40)
+        content_cancel = ButtonCoord(text='Cancel',
+                                     size_hint_y=None,
+                                     height=40)
         content_label = Label(text=message,
                               font_size=30,
-                              disabled_color=self.get_color(result_color),
-                              )
+                              disabled_color=self.get_color(result_color))
         content.add_widget(content_label)
         content.add_widget(content_cancel)
         popup = Popup(title='Результат',
@@ -201,6 +205,7 @@ class MainApp(App):
     def build(self):
         """Build app."""
         self.title = "Крестики-нолики"
+        self.grid.disabled = True
 
         for index in range(0, self.dimension ** 2):
             button = ButtonCoord(
@@ -249,4 +254,4 @@ class MainApp(App):
 
 
 if __name__ == "__main__":
-    MainApp(dimension=3).run()
+    MainApp(dimension=10, to_win=5).run()
