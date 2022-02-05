@@ -26,10 +26,11 @@ class ButtonCoord(Button):
 
 
 class MainApp(App):
-    def __init__(self, *, dimension=10, to_win=0):
+    def __init__(self, *, dimension=10, to_win=0, ai=False):
         super().__init__()
         self.dimension = dimension
         self.to_win = to_win if to_win != 0 else dimension
+        self.ai = ai
         self.size = 600
         self.symbol = 'X'
         self.pc = 'O'
@@ -87,6 +88,15 @@ class MainApp(App):
         empty_cells = [index for index, cell in enumerate(self.buttons)
                        if cell.text == '']
         index = random.choice(empty_cells)
+        is_loss = True
+        while len(empty_cells) > 1 and is_loss and self.ai:
+            btn = self.buttons[index]
+            self.btn_matrix[btn.coord[0]][btn.coord[1]] = self.pc
+            is_loss = self.check_win(self.buttons[index])
+            if is_loss:
+                empty_cells.remove(index)
+                index = random.choice(empty_cells)
+            self.btn_matrix[btn.coord[0]][btn.coord[1]] = ''
         return self.put_symbol_cell(self.buttons[index], self.pc)
 
     def put_symbol_cell(self, btn: ButtonCoord, symbol: str):
@@ -141,16 +151,14 @@ class MainApp(App):
             btn_index = btn[0] * self.dimension + btn[1]
             self.buttons[btn_index].color = self.get_color(color)
 
-    def check_win(self, btn: ButtonCoord, ):
+    def check_win(self, btn: ButtonCoord):
         """Check win after move."""
         vectors = self.make_vectors(btn)
         for vector in vectors.values():
             win = self.check_vector(self.make_text_vector(vector))
             if win:
                 return vector[win[0]:win[1]]
-
-        if self.check_end():
-            self.call_popup("Ничья")
+        return False
 
     """
         UI and App Sector
@@ -254,4 +262,4 @@ class MainApp(App):
 
 
 if __name__ == "__main__":
-    MainApp(dimension=10, to_win=5).run()
+    MainApp(dimension=10, to_win=5, ai=True).run()
