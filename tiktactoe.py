@@ -107,9 +107,9 @@ class TicTacToe():
 
     def make_vectors(self, btn: ButtonCoord):
         """Make in all direction vectors from the current button."""
-        row_vector = [CoordTuple(btn.coord[0], i)
+        row_vector = [CoordTuple(btn.coord.col, i)
                       for i in range(self.dimension)]
-        col_vector = [CoordTuple(i, btn.coord[1])
+        col_vector = [CoordTuple(i, btn.coord.row)
                       for i in range(self.dimension)]
         vector_45 = self.make_diagonal(btn.coord)
         vector_135 = self.make_diagonal(btn.coord, incline=-1)
