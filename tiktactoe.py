@@ -1,5 +1,6 @@
 import random
 import re
+from collections import namedtuple
 from collections.abc import Sequence
 
 from kivy.app import App
@@ -10,7 +11,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 
-CoordTuple = tuple[int, int]
+CoordTuple = namedtuple("CoordTuple", ("row", "col"))
 Vector = list[CoordTuple]
 
 Config.set("graphics", "resizable", "0")
@@ -19,7 +20,7 @@ Config.set("graphics", "height", "700")
 
 
 class ButtonCoord(Button):
-    coord: tuple[int, int]
+    coord: CoordTuple
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -40,7 +41,7 @@ class TicTacToe():
         """Make empty matrix self.dimension x self.dimension."""
         matrix = [[""] * self.dimension for _ in range(self.dimension)]
         for btn in self.buttons:
-            matrix[btn.coord[0]][btn.coord[1]] = btn.text
+            matrix[btn.coord.row][btn.coord.col] = btn.text
         return matrix
 
     def calc_coordinates(self, index: int) -> CoordTuple:
@@ -67,19 +68,19 @@ class TicTacToe():
         is_loss = True
         while len(empty_cells) > 1 and is_loss and self.ai:
             btn = self.buttons[index]
-            self.btn_matrix[btn.coord[0]][btn.coord[1]] = self.pc
+            self.btn_matrix[btn.coord.row][btn.coord.col] = self.pc
             is_loss = self.check_win(self.buttons[index])
             if is_loss:
                 empty_cells.remove(index)
                 index = random.choice(empty_cells)
-            self.btn_matrix[btn.coord[0]][btn.coord[1]] = ""
+            self.btn_matrix[btn.coord.row][btn.coord.col] = ""
         return self.put_symbol_cell(self.buttons[index], self.pc)
 
     def put_symbol_cell(self, btn: ButtonCoord, symbol: str):
         """Put symbol to cell."""
         btn.text = symbol
         btn.disabled = True
-        self.btn_matrix[btn.coord[0]][btn.coord[1]] = btn.text
+        self.btn_matrix[btn.coord.row][btn.coord.col] = btn.text
         return btn
 
     def check_end(self):
@@ -89,13 +90,15 @@ class TicTacToe():
     def make_diagonal(self, point: CoordTuple, incline=1) -> Vector:
         """Make diagonal vector."""
         if incline == 1:
-            start_point = (point[0] - min(point), point[1] - min(point))
+            start_point = CoordTuple(point.row - min(point),
+                                     point.col - min(point))
             length = self.dimension - max(start_point)
         else:
-            delta = min(self.dimension - 1 - point[0], point[1])
-            start_point = (point[0] - delta * incline, point[1] - delta)
+            delta = min(self.dimension - 1 - point.row, point.col)
+            start_point = CoordTuple(point.row - delta * incline,
+                                     point.col - delta)
             length = max(start_point) - min(start_point) + 1
-        return [(start_point[0] + i * incline, start_point[1] + i)
+        return [CoordTuple(start_point.row + i * incline, start_point.col + i)
                 for i in range(length)]
 
     def make_text_vector(self, arr: Sequence):
@@ -104,8 +107,10 @@ class TicTacToe():
 
     def make_vectors(self, btn: ButtonCoord):
         """Make in all direction vectors from the current button."""
-        row_vector = [(btn.coord[0], i) for i in range(self.dimension)]
-        col_vector = [(i, btn.coord[1]) for i in range(self.dimension)]
+        row_vector = [CoordTuple(btn.coord[0], i)
+                      for i in range(self.dimension)]
+        col_vector = [CoordTuple(i, btn.coord[1])
+                      for i in range(self.dimension)]
         vector_45 = self.make_diagonal(btn.coord)
         vector_135 = self.make_diagonal(btn.coord, incline=-1)
         return {"row": row_vector,
@@ -224,7 +229,7 @@ class MainApp(App, TicTacToe):
                 disabled=False,
                 on_press=self.play_tic_tac_toe,
             )
-            button.coord = self.calc_coordinates(index)
+            button.coord = CoordTuple(*self.calc_coordinates(index))
             self.buttons.append(button)
             self.grid.add_widget(button)
 
