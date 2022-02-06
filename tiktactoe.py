@@ -25,47 +25,23 @@ class ButtonCoord(Button):
         super().__init__(**kwargs)
 
 
-class MainApp(App):
+class TicTacToe():
     def __init__(self, *, dimension=10, to_win=0, ai=False):
-        super().__init__()
         self.dimension = dimension
-        self.to_win = to_win if to_win != 0 else dimension
+        self.to_win = to_win if 0 < to_win < dimension else dimension
         self.ai = ai
-        self.size = 600
-        self.symbol = 'X'
-        self.pc = 'O'
+        self.symbol = "X"
+        self.pc = "O"
+        self.result_callback = None
         self.buttons: list[ButtonCoord] = []
         self.btn_matrix = self.make_matrix()
 
-        self.root = BoxLayout(orientation="vertical", padding=5)
-        self.grid = GridLayout(cols=self.dimension)
-        self.button_x = ButtonCoord()
-        self.button_o = ButtonCoord()
-        self.role_layout = BoxLayout(
-            size_hint=(None, None),
-            size=(self.size, 75),
-        )
-
     def make_matrix(self):
         """Make empty matrix self.dimension x self.dimension."""
-        matrix = [[''] * self.dimension for _ in range(self.dimension)]
+        matrix = [[""] * self.dimension for _ in range(self.dimension)]
         for btn in self.buttons:
             matrix[btn.coord[0]][btn.coord[1]] = btn.text
         return matrix
-
-    def select_symbol(self, select_btn: ButtonCoord):
-        """Select a symbol to play."""
-        if select_btn.text == "O":
-            self.symbol = "O"
-            self.pc = 'X'
-            self.make_pc_move()
-        else:
-            self.symbol = "X"
-            self.pc = "O"
-
-        self.grid.disabled = False
-        select_btn.disabled_color = self.get_color("green")
-        self.role_layout.disabled = True
 
     def calc_coordinates(self, index: int) -> CoordTuple:
         """Calc coordinates from index button."""
@@ -74,19 +50,19 @@ class MainApp(App):
     def play_tic_tac_toe(self, btn: ButtonCoord):
         """Move and check for win."""
         result = self.check_win(self.put_symbol_cell(btn, self.symbol))
-        if result:
-            return self.call_popup("Поражение", result)
+        if result and self.result_callback:
+            return self.result_callback("Поражение", result)
 
         if not self.check_end():
             pc_move = self.make_pc_move()
             result = self.check_win(pc_move)
-            if result:
-                return self.call_popup("Победа", result)
+            if result and self.result_callback:
+                return self.result_callback("Победа", result)
 
     def make_pc_move(self) -> ButtonCoord:
         """Make a move with the pc."""
         empty_cells = [index for index, cell in enumerate(self.buttons)
-                       if cell.text == '']
+                       if cell.text == ""]
         index = random.choice(empty_cells)
         is_loss = True
         while len(empty_cells) > 1 and is_loss and self.ai:
@@ -96,7 +72,7 @@ class MainApp(App):
             if is_loss:
                 empty_cells.remove(index)
                 index = random.choice(empty_cells)
-            self.btn_matrix[btn.coord[0]][btn.coord[1]] = ''
+            self.btn_matrix[btn.coord[0]][btn.coord[1]] = ""
         return self.put_symbol_cell(self.buttons[index], self.pc)
 
     def put_symbol_cell(self, btn: ButtonCoord, symbol: str):
@@ -145,12 +121,6 @@ class MainApp(App):
         result = re.search(pattern, vector_str)
         return result.span() if result else False
 
-    def highlight_vector(self, vector: Vector, color: str):
-        """Highlight win vector."""
-        for btn in vector:
-            btn_index = btn[0] * self.dimension + btn[1]
-            self.buttons[btn_index].color = self.get_color(color)
-
     def check_win(self, btn: ButtonCoord):
         """Check win after move."""
         vectors = self.make_vectors(btn)
@@ -160,9 +130,42 @@ class MainApp(App):
                 return vector[win[0]:win[1]]
         return False
 
-    """
-        UI and App Sector
-    """
+
+class MainApp(App, TicTacToe):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.size = 600
+        self.title = "TicTacToe"
+        self.result_callback = self.call_popup
+
+        self.root = BoxLayout(orientation="vertical", padding=5)
+        self.grid = GridLayout(cols=self.dimension)
+        self.button_x = ButtonCoord()
+        self.button_o = ButtonCoord()
+        self.role_layout = BoxLayout(
+            size_hint=(None, None),
+            size=(self.size, 75),
+        )
+
+    def select_symbol(self, select_btn: ButtonCoord):
+        """Select a symbol to play."""
+        if select_btn.text == "O":
+            self.symbol = "O"
+            self.pc = "X"
+            self.make_pc_move()
+        else:
+            self.symbol = "X"
+            self.pc = "O"
+
+        self.grid.disabled = False
+        select_btn.disabled_color = self.get_color("green")
+        self.role_layout.disabled = True
+
+    def highlight_vector(self, vector: Vector, color: str):
+        """Highlight win vector."""
+        for btn in vector:
+            btn_index = btn[0] * self.dimension + btn[1]
+            self.buttons[btn_index].color = self.get_color(color)
 
     @staticmethod
     def get_color(color: str = "white") -> list[int]:
@@ -182,7 +185,7 @@ class MainApp(App):
         if vector:
             self.highlight_vector(vector, result_color)
         content = GridLayout(cols=1)
-        content_cancel = ButtonCoord(text='Cancel',
+        content_cancel = ButtonCoord(text="Cancel",
                                      size_hint_y=None,
                                      height=40)
         content_label = Label(text=message,
@@ -190,7 +193,7 @@ class MainApp(App):
                               disabled_color=self.get_color(result_color))
         content.add_widget(content_label)
         content.add_widget(content_cancel)
-        popup = Popup(title='Результат',
+        popup = Popup(title="Результат",
                       size_hint=(None, None), size=(256, 256),
                       content=content, disabled=True)
         content_cancel.bind(on_release=popup.dismiss)
@@ -212,7 +215,6 @@ class MainApp(App):
 
     def build(self):
         """Build app."""
-        self.title = "Крестики-нолики"
         self.grid.disabled = True
 
         for index in range(0, self.dimension ** 2):
